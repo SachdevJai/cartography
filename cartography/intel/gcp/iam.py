@@ -65,9 +65,9 @@ def get_gcp_roles(iam_client: Resource, parent_id: str, parent_type: str = 'proj
 
         # Get custom roles for the parent (project or organization)
         custom_roles = (
-            iam_client.projects().roles().list(parent=parent_path)
+            iam_client.projects().roles().list(parent=parent_path, view='FULL')
             if parent_type == 'projects'
-            else iam_client.organizations().roles().list(parent=parent_path)
+            else iam_client.organizations().roles().list(parent=parent_path, view='FULL')
         )
 
         while custom_roles is not None:
@@ -81,11 +81,11 @@ def get_gcp_roles(iam_client: Resource, parent_id: str, parent_type: str = 'proj
 
         # Get predefined and basic roles (only when syncing organization)
         if parent_type == 'organizations':
-            predefined_req = iam_client.roles().list(view='FULL')
-            while predefined_req is not None:
-                resp = predefined_req.execute()
+            predefined_roles = iam_client.roles().list(view='FULL')
+            while predefined_roles is not None:
+                resp = predefined_roles.execute()
                 roles.extend(resp.get('roles', []))
-                predefined_req = iam_client.roles().list_next(predefined_req, resp)
+                predefined_roles = iam_client.roles().list_next(predefined_roles, resp)
 
         return roles
     except Exception as e:
@@ -218,21 +218,14 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any],
     logger.debug("Running GCP IAM cleanup job")
 
     cleanup_jobs = []
-
-    # Service account cleanup needs projectId
-    if parent_type == 'projects':
-        sa_job_params = {
-            **common_job_parameters,
-            'projectId': common_job_parameters.get('PROJECT_ID'),
-        }
-        cleanup_jobs.append(GraphJob.from_node_schema(GCPServiceAccountSchema(), sa_job_params))
-
-    # Role cleanup always needs organizationId since all roles connect to org
-    role_job_params = {
+    cleanup_job_params = {
         **common_job_parameters,
+        'projectId': common_job_parameters.get('PROJECT_ID'),
         'organizationId': common_job_parameters.get('ORGANIZATION_ID'),
     }
-    cleanup_jobs.append(GraphJob.from_node_schema(GCPRoleSchema(), role_job_params))
+
+    cleanup_jobs.append(GraphJob.from_node_schema(GCPServiceAccountSchema(), cleanup_job_params))
+    cleanup_jobs.append(GraphJob.from_node_schema(GCPRoleSchema(), cleanup_job_params))
 
     for cleanup_job in cleanup_jobs:
         cleanup_job.run(neo4j_session)
