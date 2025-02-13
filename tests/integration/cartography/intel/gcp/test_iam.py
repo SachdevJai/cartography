@@ -1,10 +1,13 @@
 import cartography.intel.gcp.iam
 import tests.data.gcp.iam
-from tests.integration.util import check_nodes, check_rels
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
+
 
 TEST_PROJECT_ID = 'project-123'
 TEST_ORG_ID = 'organizations/123456789'
 TEST_UPDATE_TAG = 123456789
+
 
 def _create_test_project(neo4j_session):
     """Create Test GCP Project with associated organization_id."""
@@ -20,6 +23,7 @@ def _create_test_project(neo4j_session):
         org_id=TEST_ORG_ID,
     )
 
+
 def _create_test_org(neo4j_session):
     """Create Test GCP Organization"""
     neo4j_session.run(
@@ -31,6 +35,7 @@ def _create_test_org(neo4j_session):
         org_id=TEST_ORG_ID,
         update_tag=TEST_UPDATE_TAG,
     )
+
 
 def test_load_gcp_org_roles(neo4j_session):
     """Test loading organization-level roles and cleanup behavior"""
@@ -68,6 +73,7 @@ def test_load_gcp_org_roles(neo4j_session):
 
     # Assert cleanup: No GCPRole nodes remain since the old ones are now stale.
     assert check_nodes(neo4j_session, 'GCPRole', ['id']) == set()
+
 
 def test_load_gcp_project_roles(neo4j_session):
     """Test loading project-level roles and cleanup behavior"""
@@ -114,6 +120,7 @@ def test_load_gcp_project_roles(neo4j_session):
 
     # Assert cleanup: All GCPRole nodes should be removed since they are now considered stale.
     assert check_nodes(neo4j_session, 'GCPRole', ['id']) == set()
+
 
 def test_load_gcp_service_accounts(neo4j_session):
     """Test loading service accounts (separate from roles, and not affected by IAM cleanup)"""

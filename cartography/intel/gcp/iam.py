@@ -64,14 +64,20 @@ def get_gcp_roles(iam_client: Resource, parent_id: str, parent_type: str = 'proj
         parent_path = f'{parent_type}/{parent_id}'
 
         # Get custom roles for the parent (project or organization)
-        custom_roles = iam_client.projects().roles().list(parent=parent_path) if parent_type == 'projects' else \
-                       iam_client.organizations().roles().list(parent=parent_path)
-        
+        custom_roles = (
+            iam_client.projects().roles().list(parent=parent_path)
+            if parent_type == 'projects'
+            else iam_client.organizations().roles().list(parent=parent_path)
+        )
+
         while custom_roles is not None:
             resp = custom_roles.execute()
             roles.extend(resp.get('roles', []))
-            custom_roles = iam_client.projects().roles().list_next(custom_roles, resp) if parent_type == 'projects' else \
-                           iam_client.organizations().roles().list_next(custom_roles, resp)
+            custom_roles = (
+                iam_client.projects().roles().list_next(custom_roles, resp)
+                if parent_type == 'projects'
+                else iam_client.organizations().roles().list_next(custom_roles, resp)
+            )
 
         # Get predefined and basic roles (only when syncing organization)
         if parent_type == 'organizations':
@@ -212,7 +218,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any],
     logger.debug("Running GCP IAM cleanup job")
 
     cleanup_jobs = []
-    
+
     # Service account cleanup needs projectId
     if parent_type == 'projects':
         sa_job_params = {
@@ -220,7 +226,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any],
             'projectId': common_job_parameters.get('PROJECT_ID'),
         }
         cleanup_jobs.append(GraphJob.from_node_schema(GCPServiceAccountSchema(), sa_job_params))
-    
+
     # Role cleanup always needs organizationId since all roles connect to org
     role_job_params = {
         **common_job_parameters,
@@ -235,7 +241,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any],
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    iam_client: Any,  # type: Resource
+    iam_client: Resource,
     parent_id: str,
     parent_type: str,
     gcp_update_tag: int,

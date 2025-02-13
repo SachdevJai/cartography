@@ -1,17 +1,16 @@
 import logging
 from dataclasses import dataclass
-from dataclasses import field
-from typing import List, Optional
+from typing import Optional
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.relationships import CartographyRelProperties 
-from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 logger = logging.getLogger(__name__)
@@ -106,7 +105,7 @@ class GCPRoleSchema(CartographyNodeSchema):
     label: str = 'GCPRole'
     properties: GCPRoleNodeProperties = GCPRoleNodeProperties()
     sub_resource_relationship: CartographyRelSchema = GCPRoleToOrg()
-    
+
     @property
     def other_relationships(self) -> Optional[OtherRelationships]:
         return OtherRelationships([GCPRoleToProject()])

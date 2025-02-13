@@ -300,13 +300,13 @@ def _sync_multiple_projects(
     for project in projects:
         project_id = project['projectId']
         logger.info("Syncing GCP project %s for IAM", project_id)
-        
+
         # Add project ID to job parameters
         project_job_parameters = {
             **common_job_parameters,
             'PROJECT_ID': project_id,
         }
-        
+
         iam.sync(
             neo4j_session,
             resources.iam,
@@ -367,13 +367,13 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     for org in organizations:
         org_id = org['name'].removeprefix("organizations/")
         logger.info(f"Syncing organization-level IAM for organization {org_id}")
-        
+
         # Add organization ID to job parameters
         org_job_parameters = {
             **common_job_parameters,
             'ORGANIZATION_ID': f"organizations/{org_id}",
         }
-        
+
         iam.sync(
             neo4j_session,
             resources.iam,

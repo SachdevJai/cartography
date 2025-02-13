@@ -16,7 +16,7 @@ LIST_ORG_ROLES_RESPONSE = {
             'includedPermissions': ['storage.buckets.get'],
             'etag': 'def456',
         },
-    ]
+    ],
 }
 
 LIST_PROJECT_ROLES_RESPONSE = {
@@ -35,7 +35,7 @@ LIST_PROJECT_ROLES_RESPONSE = {
             'includedPermissions': ['storage.buckets.list'],
             'etag': 'jkl012',
         },
-    ]
+    ],
 }
 
 # Source: https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts#resource:-serviceaccount
@@ -83,4 +83,3 @@ LIST_SERVICE_ACCOUNT_KEYS_RESPONSE = {
         },
     ],
 }
-
