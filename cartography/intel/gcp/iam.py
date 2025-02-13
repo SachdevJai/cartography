@@ -59,6 +59,9 @@ def get_gcp_roles(iam_client: Resource, parent_id: str, parent_type: str = 'proj
     :param parent_type: Either 'projects' or 'organizations'
     :return: List of role dictionaries
     """
+    if parent_type not in {'projects', 'organizations'}:
+        raise ValueError(f"parent_type must be either 'projects' or 'organizations', got '{parent_type}'")
+
     try:
         roles = []
         parent_path = f'{parent_type}/{parent_id}'
@@ -161,46 +164,46 @@ def load_gcp_roles(
         org_id = parent_id if parent_id.startswith('organizations/') else f"organizations/{parent_id}"
 
     for role in roles:
-        role_name = role["name"]
+        role_name = role['name']
 
         # For project sync, only process roles that strictly belong to the project.
-        if parent_type == "projects" and not role_name.startswith(f"projects/{parent_id}/roles/"):
+        if parent_type == 'projects' and not role_name.startswith(f'projects/{parent_id}/roles/'):
             continue
 
-        if role_name.startswith("roles/"):
-            if role_name in ["roles/owner", "roles/editor", "roles/viewer"]:
-                role_type = "BASIC"
+        if role_name.startswith('roles/'):
+            if role_name in ['roles/owner', 'roles/editor', 'roles/viewer']:
+                role_type = 'BASIC'
             else:
-                role_type = "PREDEFINED"
-            scope = "GLOBAL"
+                role_type = 'PREDEFINED'
+            scope = 'GLOBAL'
         else:
-            role_type = "CUSTOM"
-            scope = parent_type.upper().rstrip("S")
+            role_type = 'CUSTOM'
+            scope = parent_type.upper().rstrip('S')
 
         transformed_role = {
-            "id": role_name,
-            "name": role_name,
-            "title": role.get("title"),
-            "description": role.get("description"),
-            "deleted": role.get("deleted", False),
-            "etag": role.get("etag"),
-            "includedPermissions": role.get("includedPermissions", []),
-            "roleType": role_type,
-            "scope": scope,
-            "organization_id": org_id,
+            'id': role_name,
+            'name': role_name,
+            'title': role.get('title'),
+            'description': role.get('description'),
+            'deleted': role.get('deleted', False),
+            'etag': role.get('etag'),
+            'includedPermissions': role.get('includedPermissions', []),
+            'roleType': role_type,
+            'scope': scope,
+            'organization_id': org_id,
         }
         transformed_roles.append(transformed_role)
 
     load_kwargs = {
-        "lastupdated": gcp_update_tag,
-        "organizationId": org_id,
+        'lastupdated': gcp_update_tag,
+        'organizationId': org_id,
     }
-    if parent_type == "projects":
-        load_kwargs["projectId"] = parent_id
+    if parent_type == 'projects':
+        load_kwargs['projectId'] = parent_id
     else:
-        load_kwargs["projectId"] = ""
+        load_kwargs['projectId'] = ''
 
-    logger.debug(f"Loading roles with kwargs: {load_kwargs}")
+    logger.debug(f'Loading roles with kwargs: {load_kwargs}')
 
     load(
         neo4j_session,
