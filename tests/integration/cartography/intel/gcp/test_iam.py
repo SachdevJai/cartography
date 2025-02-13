@@ -4,11 +4,12 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_PROJECT_ID = 'project-123'
+TEST_ORG_ID = 'organizations/123456789'
 TEST_UPDATE_TAG = 123456789
 
 
 def _create_test_project(neo4j_session):
-    # Create Test GCP Project
+    """Create Test GCP Project"""
     neo4j_session.run(
         """
         MERGE (project:GCPProject{id: $project_id})
@@ -20,16 +21,30 @@ def _create_test_project(neo4j_session):
     )
 
 
+def _create_test_org(neo4j_session):
+    """Create Test GCP Organization"""
+    neo4j_session.run(
+        """
+        MERGE (org:GCPOrganization{id: $org_id})
+        ON CREATE SET org.firstseen = timestamp()
+        SET org.lastupdated = $update_tag
+        """,
+        org_id=TEST_ORG_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
 def test_load_gcp_roles(neo4j_session):
     # Arrange
-    _create_test_project(neo4j_session)
+    _create_test_org(neo4j_session)  # Create org instead of project
     data = tests.data.gcp.iam.LIST_ROLES_RESPONSE['roles']
 
     # Act
     cartography.intel.gcp.iam.load_gcp_roles(
         neo4j_session,
         data,
-        TEST_PROJECT_ID,
+        "123456789",  # org ID without prefix
+        "organizations",
         TEST_UPDATE_TAG,
     )
 
@@ -41,15 +56,15 @@ def test_load_gcp_roles(neo4j_session):
     }
     assert check_nodes(neo4j_session, 'GCPRole', ['id']) == expected_nodes
 
-    # Check relationships
+    # Check relationships - now connecting to organization instead of project
     expected_rels = {
-        (TEST_PROJECT_ID, "projects/project-123/roles/customRole1"),
-        (TEST_PROJECT_ID, "roles/editor"),
-        (TEST_PROJECT_ID, "projects/project-123/roles/customRole2"),
+        (TEST_ORG_ID, "projects/project-123/roles/customRole1"),
+        (TEST_ORG_ID, "roles/editor"),
+        (TEST_ORG_ID, "projects/project-123/roles/customRole2"),
     }
     assert check_rels(
         neo4j_session,
-        'GCPProject',
+        'GCPOrganization',
         'id',
         'GCPRole',
         'name',
@@ -59,7 +74,7 @@ def test_load_gcp_roles(neo4j_session):
 
 def test_load_gcp_service_accounts(neo4j_session):
     # Arrange
-    _create_test_project(neo4j_session)
+    _create_test_project(neo4j_session)  # Service accounts still connect to projects
     data = tests.data.gcp.iam.LIST_SERVICE_ACCOUNTS_RESPONSE['accounts']
 
     # Act
@@ -77,7 +92,7 @@ def test_load_gcp_service_accounts(neo4j_session):
     }
     assert check_nodes(neo4j_session, 'GCPServiceAccount', ['id']) == expected_nodes
 
-    # Check relationships
+    # Check relationships - unchanged for service accounts
     expected_rels = {
         (TEST_PROJECT_ID, "112233445566778899"),
         (TEST_PROJECT_ID, "998877665544332211"),
