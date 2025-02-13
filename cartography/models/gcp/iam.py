@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from dataclasses import field
-from typing import List
+from typing import List, Optional
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
@@ -11,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import OtherRelationships
 
 
 logger = logging.getLogger(__name__)
@@ -84,14 +85,28 @@ class GCPRoleToOrg(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPRoleToProject(CartographyRelSchema):
+    target_node_label: str = 'GCPProject'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('projectId', set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPRoleToOrgRelProperties = GCPRoleToOrgRelProperties()
+
+
+@dataclass(frozen=True)
 class GCPRoleSchema(CartographyNodeSchema):
     """
     Schema for GCP IAM Roles.
-    The relationship to either Project or Organization is determined by the role's scope:
     - GLOBAL: Role is attached to all GCPProjects and the GCPOrganization
-    - PROJECT: Custom role attached only to the specific project
+    - PROJECT: Custom role attached to both specific project and organization
     - ORGANIZATION: Custom role attached only to the specific organization
     """
     label: str = 'GCPRole'
     properties: GCPRoleNodeProperties = GCPRoleNodeProperties()
-    sub_resource_relationship: GCPRoleToOrg = GCPRoleToOrg()
+    sub_resource_relationship: CartographyRelSchema = GCPRoleToOrg()
+    
+    @property
+    def other_relationships(self) -> Optional[OtherRelationships]:
+        return OtherRelationships([GCPRoleToProject()])

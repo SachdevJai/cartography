@@ -2,6 +2,7 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import neo4j
 from googleapiclient.discovery import Resource
@@ -132,46 +133,74 @@ def load_gcp_roles(
     parent_id: str,
     parent_type: str,
     gcp_update_tag: int,
+    job_parameters: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
     Load GCP role data into Neo4j.
+
+    For organization-level roles, parent_id is taken as the organization identifier.
+    For project-level roles, if job_parameters is provided and contains an 'ORGANIZATION_ID' value,
+    that value will be used. This way, the caller does not need to pass a separate organization_id.
     """
     logger.debug(f"Loading {len(roles)} roles for {parent_type}/{parent_id}")
     transformed_roles = []
-    
+
+    if job_parameters is None:
+        job_parameters = {}
+
+    if parent_type == 'projects':
+        # For project roles, try to derive the organization id from job_parameters.
+        org_id = job_parameters.get('ORGANIZATION_ID', '')
+    else:
+        org_id = parent_id if parent_id.startswith('organizations/') else f"organizations/{parent_id}"
+
     for role in roles:
-        role_name = role['name']
-        if role_name.startswith('roles/'):
-            if role_name in ['roles/owner', 'roles/editor', 'roles/viewer']:
-                role_type = 'BASIC'
+        role_name = role["name"]
+
+        # For project sync, only process roles that strictly belong to the project.
+        if parent_type == "projects" and not role_name.startswith(f"projects/{parent_id}/roles/"):
+            continue
+
+        if role_name.startswith("roles/"):
+            if role_name in ["roles/owner", "roles/editor", "roles/viewer"]:
+                role_type = "BASIC"
             else:
-                role_type = 'PREDEFINED'
-            scope = 'GLOBAL'
+                role_type = "PREDEFINED"
+            scope = "GLOBAL"
         else:
-            role_type = 'CUSTOM'
-            scope = parent_type.upper().rstrip('S')  # Keep the scope logic
+            role_type = "CUSTOM"
+            scope = parent_type.upper().rstrip("S")
 
         transformed_role = {
-            'id': role_name,
-            'name': role_name,
-            'title': role.get('title'),
-            'description': role.get('description'),
-            'deleted': role.get('deleted', False),
-            'etag': role.get('etag'),
-            'includedPermissions': role.get('includedPermissions', []),
-            'roleType': role_type,
-            'scope': scope,
+            "id": role_name,
+            "name": role_name,
+            "title": role.get("title"),
+            "description": role.get("description"),
+            "deleted": role.get("deleted", False),
+            "etag": role.get("etag"),
+            "includedPermissions": role.get("includedPermissions", []),
+            "roleType": role_type,
+            "scope": scope,
+            "organization_id": org_id,
         }
         transformed_roles.append(transformed_role)
 
-    # Always connect to organization, regardless of scope
-    org_id = parent_id if parent_type == 'organizations' else parent_id.split('/')[0]
+    load_kwargs = {
+        "lastupdated": gcp_update_tag,
+        "organizationId": org_id,
+    }
+    if parent_type == "projects":
+        load_kwargs["projectId"] = parent_id
+    else:
+        load_kwargs["projectId"] = ""
+
+    logger.debug(f"Loading roles with kwargs: {load_kwargs}")
+
     load(
         neo4j_session,
         GCPRoleSchema(),
         transformed_roles,
-        lastupdated=gcp_update_tag,
-        organizationId=f"organizations/{org_id}",
+        **load_kwargs,
     )
 
 
@@ -206,7 +235,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any],
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    iam_client: Resource,
+    iam_client: Any,  # type: Resource
     parent_id: str,
     parent_type: str,
     gcp_update_tag: int,
@@ -217,10 +246,10 @@ def sync(
     """
     logger.info(f"Syncing GCP IAM for {parent_type}/{parent_id}")
 
-    # Get and load roles
     roles = get_gcp_roles(iam_client, parent_id, parent_type)
     logger.info(f"Found {len(roles)} roles in {parent_type}/{parent_id}")
-    load_gcp_roles(neo4j_session, roles, parent_id, parent_type, gcp_update_tag)
 
-    # Run cleanup with parent type
+    # Pass the common_job_parameters directly.
+    load_gcp_roles(neo4j_session, roles, parent_id, parent_type, gcp_update_tag, common_job_parameters)
+
     cleanup(neo4j_session, common_job_parameters, parent_type)
