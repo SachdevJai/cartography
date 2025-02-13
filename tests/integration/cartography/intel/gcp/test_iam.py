@@ -123,16 +123,19 @@ def test_load_gcp_project_roles(neo4j_session):
 
 
 def test_load_gcp_service_accounts(neo4j_session):
-    """Test loading service accounts (separate from roles, and not affected by IAM cleanup)"""
+    # Arrange
     _create_test_project(neo4j_session)
     data = tests.data.gcp.iam.LIST_SERVICE_ACCOUNTS_RESPONSE['accounts']
 
+    # Act
     cartography.intel.gcp.iam.load_gcp_service_accounts(
         neo4j_session,
         data,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
     )
+
+    # Assert
     expected_nodes = {
         ("112233445566778899",),
         ("998877665544332211",),
