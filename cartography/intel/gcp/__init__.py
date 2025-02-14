@@ -314,7 +314,7 @@ def _sync_multiple_projects(
             project_id,
             ParentType.PROJECT,  # specify that this is a project-level sync
             gcp_update_tag,
-            project_job_parameters,  # Use the updated parameters
+            project_job_parameters,
         )
 
 
