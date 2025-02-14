@@ -131,7 +131,6 @@ def load_gcp_service_accounts(
         transformed_service_accounts,
         lastupdated=gcp_update_tag,
         projectId=project_id,
-        additional_labels=['GCPPrincipal'],
     )
 
 
@@ -247,6 +246,12 @@ def sync(
     Sync GCP IAM resources for a given parent (project or organization).
     """
     logger.info(f"Syncing GCP IAM for {parent_type}/{parent_id}")
+
+    # Get and load service accounts
+    if parent_type == 'projects':
+        service_accounts = get_gcp_service_accounts(iam_client, parent_id)
+        logger.info(f"Found {len(service_accounts)} service accounts in project {parent_id}")
+        load_gcp_service_accounts(neo4j_session, service_accounts, parent_id, gcp_update_tag)
 
     roles = get_gcp_roles(iam_client, parent_id, parent_type)
     logger.info(f"Found {len(roles)} roles in {parent_type}/{parent_id}")
