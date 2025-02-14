@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 from typing import Any
 from typing import Dict
 from typing import List
@@ -12,6 +13,12 @@ from cartography.graph.job import GraphJob
 from cartography.models.gcp.iam import GCPRoleSchema
 from cartography.models.gcp.iam import GCPServiceAccountSchema
 from cartography.util import timeit
+
+
+class ParentType(Enum):
+    PROJECT = 'projects'
+    ORGANIZATION = 'organizations'
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +55,7 @@ def get_gcp_service_accounts(iam_client: Resource, project_id: str) -> List[Dict
 
 
 @timeit
-def get_gcp_roles(iam_client: Resource, parent_id: str, parent_type: str = 'projects') -> List[Dict]:
+def get_gcp_roles(iam_client: Resource, parent_id: str, parent_type: ParentType = ParentType.PROJECT) -> List[Dict]:
     """
     Retrieve roles from GCP for a given parent (project or organization). Folders do not have custom roles.
     For organizations, this includes predefined roles and custom org-level roles.
@@ -56,20 +63,17 @@ def get_gcp_roles(iam_client: Resource, parent_id: str, parent_type: str = 'proj
 
     :param iam_client: The IAM resource object
     :param parent_id: The GCP Project ID or Organization ID
-    :param parent_type: Either 'projects' or 'organizations'
+    :param parent_type: ParentType enum specifying whether this is a project or organization
     :return: List of role dictionaries
     """
-    if parent_type not in {'projects', 'organizations'}:
-        raise ValueError(f"parent_type must be either 'projects' or 'organizations', got '{parent_type}'")
-
     try:
         roles = []
-        parent_path = f'{parent_type}/{parent_id}'
+        parent_path = f'{parent_type.value}/{parent_id}'
 
         # Get custom roles for the parent (project or organization)
         custom_roles = (
             iam_client.projects().roles().list(parent=parent_path, view='FULL')
-            if parent_type == 'projects'
+            if parent_type == ParentType.PROJECT
             else iam_client.organizations().roles().list(parent=parent_path, view='FULL')
         )
 
@@ -78,12 +82,12 @@ def get_gcp_roles(iam_client: Resource, parent_id: str, parent_type: str = 'proj
             roles.extend(resp.get('roles', []))
             custom_roles = (
                 iam_client.projects().roles().list_next(custom_roles, resp)
-                if parent_type == 'projects'
+                if parent_type == ParentType.PROJECT
                 else iam_client.organizations().roles().list_next(custom_roles, resp)
             )
 
         # Get predefined and basic roles (only when syncing organization)
-        if parent_type == 'organizations':
+        if parent_type == ParentType.ORGANIZATION:
             predefined_roles = iam_client.roles().list(view='FULL')
             while predefined_roles is not None:
                 resp = predefined_roles.execute()
@@ -91,8 +95,13 @@ def get_gcp_roles(iam_client: Resource, parent_id: str, parent_type: str = 'proj
                 predefined_roles = iam_client.roles().list_next(predefined_roles, resp)
 
         return roles
-    except Exception as e:
-        print(f"Error getting GCP roles for {parent_type}/{parent_id} - {e}")
+    except Exception:
+        logger.error(
+            "Error getting GCP roles for %s/%s",
+            parent_type.value,
+            parent_id,
+            exc_info=True,
+        )
         return []
 
 
@@ -139,7 +148,7 @@ def load_gcp_roles(
     neo4j_session: neo4j.Session,
     roles: List[Dict],
     parent_id: str,
-    parent_type: str,
+    parent_type: ParentType,
     gcp_update_tag: int,
     job_parameters: Optional[Dict[str, Any]] = None,
 ) -> None:
@@ -150,13 +159,13 @@ def load_gcp_roles(
     For project-level roles, if job_parameters is provided and contains an 'ORGANIZATION_ID' value,
     that value will be used. This way, the caller does not need to pass a separate organization_id.
     """
-    logger.debug(f"Loading {len(roles)} roles for {parent_type}/{parent_id}")
+    logger.debug("Loading %d roles for %s/%s", len(roles), parent_type.value, parent_id)
     transformed_roles = []
 
     if job_parameters is None:
         job_parameters = {}
 
-    if parent_type == 'projects':
+    if parent_type == ParentType.PROJECT:
         # For project roles, try to derive the organization id from job_parameters.
         org_id = job_parameters.get('ORGANIZATION_ID', '')
     else:
@@ -166,7 +175,7 @@ def load_gcp_roles(
         role_name = role['name']
 
         # For project sync, only process roles that strictly belong to the project.
-        if parent_type == 'projects' and not role_name.startswith(f'projects/{parent_id}/roles/'):
+        if parent_type == ParentType.PROJECT and not role_name.startswith(f'projects/{parent_id}/roles/'):
             continue
 
         if role_name.startswith('roles/'):
@@ -177,7 +186,7 @@ def load_gcp_roles(
             scope = 'GLOBAL'
         else:
             role_type = 'CUSTOM'
-            scope = parent_type.upper().rstrip('S')
+            scope = parent_type.value.upper().rstrip('S')
 
         transformed_role = {
             'id': role_name,
@@ -197,7 +206,7 @@ def load_gcp_roles(
         'lastupdated': gcp_update_tag,
         'organizationId': org_id,
     }
-    if parent_type == 'projects':
+    if parent_type == ParentType.PROJECT:
         load_kwargs['projectId'] = parent_id
     else:
         load_kwargs['projectId'] = ''
@@ -213,11 +222,15 @@ def load_gcp_roles(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any], parent_type: str) -> None:
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any], parent_type: ParentType) -> None:
     """
     Run cleanup jobs for GCP IAM data in Neo4j.
+
+    :param neo4j_session: The Neo4j session
+    :param common_job_parameters: Common parameters for cleanup jobs
+    :param parent_type: ParentType enum specifying whether this is a project or organization cleanup
     """
-    logger.debug("Running GCP IAM cleanup job")
+    logger.debug("Running GCP IAM cleanup job for %s", parent_type.value)
 
     cleanup_jobs = []
     cleanup_job_params = {
@@ -226,7 +239,10 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any],
         'organizationId': common_job_parameters.get('ORGANIZATION_ID'),
     }
 
-    cleanup_jobs.append(GraphJob.from_node_schema(GCPServiceAccountSchema(), cleanup_job_params))
+    # Only include service account cleanup for project-level syncs
+    if parent_type == ParentType.PROJECT:
+        cleanup_jobs.append(GraphJob.from_node_schema(GCPServiceAccountSchema(), cleanup_job_params))
+
     cleanup_jobs.append(GraphJob.from_node_schema(GCPRoleSchema(), cleanup_job_params))
 
     for cleanup_job in cleanup_jobs:
@@ -238,23 +254,30 @@ def sync(
     neo4j_session: neo4j.Session,
     iam_client: Resource,
     parent_id: str,
-    parent_type: str,
+    parent_type: ParentType,
     gcp_update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
     Sync GCP IAM resources for a given parent (project or organization).
-    """
-    logger.info(f"Syncing GCP IAM for {parent_type}/{parent_id}")
 
-    # Get and load service accounts
-    if parent_type == 'projects':
+    :param neo4j_session: The Neo4j session
+    :param iam_client: The IAM resource object
+    :param parent_id: The GCP Project ID or Organization ID
+    :param parent_type: ParentType enum specifying whether this is a project or organization
+    :param gcp_update_tag: The timestamp for this sync run
+    :param common_job_parameters: Common parameters for sync jobs
+    """
+    logger.info("Syncing GCP IAM for %s/%s", parent_type.value, parent_id)
+
+    # Get and load service accounts (only for projects)
+    if parent_type == ParentType.PROJECT:
         service_accounts = get_gcp_service_accounts(iam_client, parent_id)
-        logger.info(f"Found {len(service_accounts)} service accounts in project {parent_id}")
+        logger.info("Found %d service accounts in project %s", len(service_accounts), parent_id)
         load_gcp_service_accounts(neo4j_session, service_accounts, parent_id, gcp_update_tag)
 
     roles = get_gcp_roles(iam_client, parent_id, parent_type)
-    logger.info(f"Found {len(roles)} roles in {parent_type}/{parent_id}")
+    logger.info("Found %d roles in %s/%s", len(roles), parent_type.value, parent_id)
 
     # Pass the common_job_parameters directly.
     load_gcp_roles(neo4j_session, roles, parent_id, parent_type, gcp_update_tag, common_job_parameters)

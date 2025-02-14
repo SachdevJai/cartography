@@ -19,6 +19,7 @@ from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
+from cartography.intel.gcp.iam import ParentType
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -311,7 +312,7 @@ def _sync_multiple_projects(
             neo4j_session,
             resources.iam,
             project_id,
-            'projects',  # specify that this is a project-level sync
+            ParentType.PROJECT,  # specify that this is a project-level sync
             gcp_update_tag,
             project_job_parameters,  # Use the updated parameters
         )
@@ -378,7 +379,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session,
             resources.iam,
             org_id,
-            'organizations',
+            ParentType.ORGANIZATION,
             config.update_tag,
             org_job_parameters,
         )

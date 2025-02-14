@@ -1,5 +1,6 @@
 import cartography.intel.gcp.iam
 import tests.data.gcp.iam
+from cartography.intel.gcp.iam import ParentType
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -48,7 +49,7 @@ def test_load_gcp_org_roles(neo4j_session):
         neo4j_session,
         data,
         "123456789",  # Org id without prefix.
-        "organizations",
+        ParentType.ORGANIZATION,
         TEST_UPDATE_TAG,
     )
 
@@ -69,7 +70,7 @@ def test_load_gcp_org_roles(neo4j_session):
         'UPDATE_TAG': TEST_UPDATE_TAG + 1,  # New sync run tag.
         'ORGANIZATION_ID': TEST_ORG_ID,
     }
-    cartography.intel.gcp.iam.cleanup(neo4j_session, common_job_parameters, "organizations")
+    cartography.intel.gcp.iam.cleanup(neo4j_session, common_job_parameters, ParentType.ORGANIZATION)
 
     # Assert cleanup: No GCPRole nodes remain since the old ones are now stale.
     assert check_nodes(neo4j_session, 'GCPRole', ['id']) == set()
@@ -88,7 +89,7 @@ def test_load_gcp_project_roles(neo4j_session):
         neo4j_session,
         data,
         TEST_PROJECT_ID,
-        "projects",
+        ParentType.PROJECT,
         TEST_UPDATE_TAG,
         job_parameters,
     )
@@ -116,7 +117,7 @@ def test_load_gcp_project_roles(neo4j_session):
         'PROJECT_ID': TEST_PROJECT_ID,
         'ORGANIZATION_ID': TEST_ORG_ID,
     }
-    cartography.intel.gcp.iam.cleanup(neo4j_session, common_job_parameters, "projects")
+    cartography.intel.gcp.iam.cleanup(neo4j_session, common_job_parameters, ParentType.PROJECT)
 
     # Assert cleanup: All GCPRole nodes should be removed since they are now considered stale.
     assert check_nodes(neo4j_session, 'GCPRole', ['id']) == set()
