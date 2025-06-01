@@ -12,7 +12,6 @@ from cartography.intel.pagerduty.users import sync_users
 from cartography.intel.pagerduty.vendors import sync_vendors
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -42,16 +41,12 @@ def start_pagerduty_ingestion(
     if config.pagerduty_request_timeout is not None:
         session.timeout = config.pagerduty_request_timeout
     sync_users(neo4j_session, config.update_tag, session)
+    # WIP: teams migration blocked due to https://github.com/cartography-cncf/cartography/issues/1589
     sync_teams(neo4j_session, config.update_tag, session)
     sync_vendors(neo4j_session, config.update_tag, session)
     sync_services(neo4j_session, config.update_tag, session)
     sync_schedules(neo4j_session, config.update_tag, session)
     sync_escalation_policies(neo4j_session, config.update_tag, session)
-    run_cleanup_job(
-        "pagerduty_import_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
 
     merge_module_sync_metadata(
         neo4j_session,

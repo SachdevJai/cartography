@@ -54,13 +54,11 @@ class PagerDutyServiceToTeamProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:PagerDutTeam)-[:ASSOCIATED_WITH]->(:PagerDutyService)
+# (:PagerDutyTeam)-[:ASSOCIATED_WITH]->(:PagerDutyService)
 class PagerDutyServiceToTeamRel(CartographyRelSchema):
-    target_node_label: str = "PagerDutTeam"
+    target_node_label: str = "PagerDutyTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        # WIP: switch intel to a one_to_many transform function
-        # MATCH (t:PagerDutyTeam{id: relation.team}), (s:PagerDutyService{id: relation.service})
-        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("teams_id", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"

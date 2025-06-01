@@ -12,6 +12,8 @@ def test_load_user_data(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
+    # WIP: rework with check_node helper
+
     expected_nodes = {
         "PXPGF42",
         "PAM4FGS",

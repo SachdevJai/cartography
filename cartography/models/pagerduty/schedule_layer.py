@@ -54,9 +54,7 @@ class PagerDutyScheduleLayerToUserProperties(CartographyRelProperties):
 class PagerDutyScheduleLayerToUserRel(CartographyRelSchema):
     target_node_label: str = "PagerDutyUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        # WIP: Migrate to a one to many transform function
-        # MATCH (l:PagerDutyScheduleLayer{id: relation.layer_id}), (u:PagerDutyUser{id: relation.user})
-        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("users_id", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"

@@ -6,6 +6,9 @@ from typing import List
 import neo4j
 from pdpyras import APISession
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.pagerduty.vendor import PagerDutyVendorSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -52,9 +55,13 @@ def load_vendor_data(
             v.lastupdated = $update_tag
     """
     logger.info(f"Loading {len(data)} pagerduty vendors.")
+    load(neo4j_session, PagerDutyVendorSchema(), data, lastupdated=update_tag)
 
-    neo4j_session.run(
-        ingestion_cypher_query,
-        Vendors=data,
-        update_tag=update_tag,
+
+@timeit
+def cleanup(
+    neo4j_session: neo4j.Session,
+) -> None:
+    GraphJob.from_node_schema(PagerDutyVendorSchema(), {}).run(
+        neo4j_session,
     )

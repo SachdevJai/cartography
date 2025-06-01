@@ -12,6 +12,8 @@ def test_load_service_data(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
+    # WIP: rework with check_node helper
+
     expected_nodes = {
         "PIJ90N7",
     }
@@ -23,6 +25,8 @@ def test_load_service_data(neo4j_session):
     actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == expected_nodes
 
+    # WIP Check rel with teams
+
 
 def test_load_integration_data(neo4j_session):
     integration_data = tests.data.pagerduty.services.GET_INTEGRATIONS_DATA
@@ -31,6 +35,8 @@ def test_load_integration_data(neo4j_session):
         integration_data,
         TEST_UPDATE_TAG,
     )
+
+    # WIP: rework with check_node helper
 
     expected_nodes = {
         "PE1U9CH",
@@ -42,3 +48,6 @@ def test_load_integration_data(neo4j_session):
     )
     actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == expected_nodes
+
+    # WIP Check rel with services
+    # WIP: Chec rel with vendor
