@@ -1,58 +1,84 @@
-ingestion_cypher_query = """
-    UNWIND $EscalationPolicies AS policy
-        MERGE (p:PagerDutyEscalationPolicy{id: policy.id})
-        ON CREATE SET p.html_url = policy.html_url,
-            p.firstseen = timestamp()
-        SET p.type = policy.type,
-            p.summary = policy.summary,
-            p.on_call_handoff_notifications = policy.on_call_handoff_notifications,
-            p.name = policy.name,
-            p.num_loops = policy.num_loops,
-            p.lastupdated = $update_tag
-    """
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
-    ingestion_cypher_query = """
-    UNWIND $Rules AS rule
-        MERGE (epr:PagerDutyEscalationPolicyRule{id: rule.id})
-        ON CREATE SET epr.firstseen = timestamp()
-        SET epr.escalation_delay_in_minutes = rule.escalation_delay_in_minutes,
-            epr.lastupdated = $update_tag
-        WITH epr, rule
-        MATCH (ep:PagerDutyEscalationPolicy{id: rule._escalation_policy_id})
-        MERGE (ep)-[r:HAS_RULE]->(epr)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.order = rule._escalation_policy_order
-    """
+@dataclass(frozen=True)
+class PagerDutyEscalationPolicyProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    html_url: PropertyRef = PropertyRef("html_url")
+    type: PropertyRef = PropertyRef("type")
+    summary: PropertyRef = PropertyRef("summary")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    on_call_handoff_notifications: PropertyRef = PropertyRef(
+        "on_call_handoff_notifications"
+    )
+    num_loops: PropertyRef = PropertyRef("num_loops")
 
-    ingestion_cypher_query = """
-    UNWIND $Relations AS relation
-        MATCH (p:PagerDutyEscalationPolicyRule{id: relation.rule}),
-        (u:PagerDutyUser{id: relation.user})
-        MERGE (p)-[r:ASSOCIATED_WITH]->(u)
-        ON CREATE SET r.firstseen = timestamp()
-    """
 
-    ingestion_cypher_query = """
-    UNWIND $Relations AS relation
-        MATCH (p:PagerDutyEscalationPolicyRule{id: relation.rule}),
-        (s:PagerDutySchedule{id: relation.schedule})
-        MERGE (p)-[r:ASSOCIATED_WITH]->(s)
-        ON CREATE SET r.firstseen = timestamp()
-    """
+@dataclass(frozen=True)
+class PagerDutyEscalationPolicyToServiceProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
-    ingestion_cypher_query = """
-    UNWIND $Relations AS relation
-        MATCH (p:PagerDutyEscalationPolicy{id: relation.escalation_policy}),
-        (s:PagerDutyService{id: relation.service})
-        MERGE (s)-[r:ASSOCIATED_WITH]->(p)
-        ON CREATE SET r.firstseen = timestamp()
-    """
 
-    ingestion_cypher_query = """
-    UNWIND $Relations AS relation
-        MATCH (p:PagerDutyEscalationPolicy{id: relation.escalation_policy}),
-        (t:PagerDutyTeam{id: relation.team})
-        MERGE (t)-[r:ASSOCIATED_WITH]->(p)
-        ON CREATE SET r.firstseen = timestamp()
-    """
+@dataclass(frozen=True)
+# (:PagerDutyService)-[:ASSOCIATED_WITH]->(:PagerDutyEscalationPolicy)
+class PagerDutyEscalationPolicyToServiceRel(CartographyRelSchema):
+    target_node_label: str = "PagerDutyService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        # WIP: Migrate to a one to many transform function
+        # MATCH (p:PagerDutyEscalationPolicy{id: relation.escalation_policy}),
+        # (s:PagerDutyService{id: relation.service})
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "ASSOCIATED_WITH"
+    properties: PagerDutyEscalationPolicyToServiceProperties = (
+        PagerDutyEscalationPolicyToServiceProperties()
+    )
+
+
+@dataclass(frozen=True)
+class PagerDutyEscalationPolicyToTeamProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:PagerDutyTeam)-[:ASSOCIATED_WITH]->(:PagerDutyEscalationPolicy)
+class PagerDutyEscalationPolicyToTeamRel(CartographyRelSchema):
+    target_node_label: str = "PagerDutyTeam"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        # WIP: Migrate to a one to many transform function
+        # MATCH (p:PagerDutyEscalationPolicy{id: relation.escalation_policy}),
+        # (s:PagerDutyService{id: relation.service})
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "ASSOCIATED_WITH"
+    properties: PagerDutyEscalationPolicyToTeamProperties = (
+        PagerDutyEscalationPolicyToTeamProperties()
+    )
+
+
+@dataclass(frozen=True)
+class PagerDutyEscalationPolicySchema(CartographyNodeSchema):
+    label: str = "PagerDutyEscalationPolicy"
+    properties: PagerDutyEscalationPolicyProperties = (
+        PagerDutyEscalationPolicyProperties()
+    )
+    scoped_cleanup: bool = False
+    other_relationsips: OtherRelationships = OtherRelationships(
+        [
+            PagerDutyEscalationPolicyToServiceRel(),
+            PagerDutyEscalationPolicyToTeamRel(),
+        ]
+    )

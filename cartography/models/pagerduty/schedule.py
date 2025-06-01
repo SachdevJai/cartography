@@ -1,44 +1,54 @@
-ingestion_cypher_query = """
-    UNWIND $Schedules AS schedule
-        MERGE (u:PagerDutySchedule{id: schedule.id})
-        ON CREATE SET u.html_url = schedule.html_url,
-            u.firstseen = timestamp()
-        SET u.type = schedule.type,
-            u.summary = schedule.summary,
-            u.name = schedule.name,
-            u.time_zone = schedule.time_zone,
-            u.description = schedule.description,
-            u.lastupdated = $update_tag
-    """
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
-    ingestion_cypher_query = """
-    UNWIND $Relations AS relation
-        MATCH (s:PagerDutySchedule{id: relation.schedule}), (u:PagerDutyUser{id: relation.user})
-        MERGE (u)-[r:MEMBER_OF]->(s)
-        ON CREATE SET r.firstseen = timestamp()
-    """
+@dataclass(frozen=True)
+class PagerDutyScheduleProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    html_url: PropertyRef = PropertyRef("html_url")
+    type: PropertyRef = PropertyRef("type")
+    summary: PropertyRef = PropertyRef("summary")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    time_zone: PropertyRef = PropertyRef("time_zone")
+    description: PropertyRef = PropertyRef("description")
 
 
-    ingestion_cypher_query = """
-    UNWIND $Layers AS layer
-        MERGE (l:PagerDutyScheduleLayer{id: layer._layer_id})
-        ON CREATE SET l.name = layer.name,
-            l.schedule_id = layer._schedule_id
-        SET l.start = layer.start,
-            l.end = layer.end,
-            l.rotation_virtual_start = layer.rotation_virtual_start,
-            l.rotation_turn_length_seconds = layer.rotation_turn_length_seconds,
-            l.lastupdated = $update_tag
-        with l, layer._schedule_id as schedule_id
-        MATCH (s:PagerDutySchedule{id: schedule_id})
-        MERGE (s)-[r:HAS_LAYER]->(l)
-        ON CREATE SET r.firstseen = timestamp()
-    """
+@dataclass(frozen=True)
+class PagerDutyScheduleToUserProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
-    ingestion_cypher_query = """
-    UNWIND $Relations AS relation
-        MATCH (l:PagerDutyScheduleLayer{id: relation.layer_id}), (u:PagerDutyUser{id: relation.user})
-        MERGE (u)-[r:MEMBER_OF]->(l)
-        ON CREATE SET r.firstseen = timestamp()
-    """
+
+@dataclass(frozen=True)
+# (:PagerDutyUser)-[:MEMBER_OF]->(:PagerDutySchedule)
+class PagerDutyScheduleToUserRel(CartographyRelSchema):
+    target_node_label: str = "PagerDutyUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        # WIP: Migrate to a one to many transform function
+        #  MATCH (s:PagerDutySchedule{id: relation.schedule}), (u:PagerDutyUser{id: relation.user})
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
+    properties: PagerDutyScheduleToUserProperties = PagerDutyScheduleToUserProperties()
+
+
+@dataclass(frozen=True)
+class PagerDutyScheduleSchema(CartographyNodeSchema):
+    label: str = "PagerDutySchedule"
+    properties: PagerDutyScheduleProperties = PagerDutyScheduleProperties()
+    scoped_cleanup: bool = False
+    other_relationsips: OtherRelationships = OtherRelationships(
+        [
+            PagerDutyScheduleToUserRel(),
+        ]
+    )

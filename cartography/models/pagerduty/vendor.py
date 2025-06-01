@@ -11,7 +11,7 @@ class PagerDutyVendorProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     type: PropertyRef = PropertyRef("type")
     summary: PropertyRef = PropertyRef("summary")
-    name: PropertyRef = PropertyRef("name")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
     website_url: PropertyRef = PropertyRef("website_url")
     logo_url: PropertyRef = PropertyRef("logo_url")
     thumbnail_url: PropertyRef = PropertyRef("thumbnail_url")

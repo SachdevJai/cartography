@@ -18,7 +18,7 @@ class PagerDutyTeamProperties(CartographyNodeProperties):
     html_url: PropertyRef = PropertyRef("html_url")
     type: PropertyRef = PropertyRef("type")
     summary: PropertyRef = PropertyRef("summary")
-    name: PropertyRef = PropertyRef("name")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
     description: PropertyRef = PropertyRef("description")
     default_role: PropertyRef = PropertyRef("default_role")
 
