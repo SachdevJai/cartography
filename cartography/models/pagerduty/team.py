@@ -15,6 +15,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class PagerDutyTeamProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    html_url: PropertyRef = PropertyRef("html_url")
+    type: PropertyRef = PropertyRef("type")
+    summary: PropertyRef = PropertyRef("summary")
+    name: PropertyRef = PropertyRef("name")
+    description: PropertyRef = PropertyRef("description")
+    default_role: PropertyRef = PropertyRef("default_role")
 
 
 @dataclass(frozen=True)
@@ -32,39 +38,14 @@ class PagerDutyTeamToUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
-    properties: PagerDutyTeamToUserProperties = (
-        PagerDutyTeamToUserProperties()
-    )
-
-
-@dataclass(frozen=True)
-class PagerDutyTeamToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:PagerDutyOrganization)-[:RESOURCE]->(:PagerDutyTeam)
-class PagerDutyTeamToOrganizationRel(CartographyRelSchema):
-    target_node_label: str = "PagerDutyOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: PagerDutyTeamToOrganizationRelProperties = (
-        PagerDutyTeamToOrganizationRelProperties()
-    )
+    properties: PagerDutyTeamToUserProperties = PagerDutyTeamToUserProperties()
 
 
 @dataclass(frozen=True)
 class PagerDutyTeamSchema(CartographyNodeSchema):
     label: str = "PagerDutyTeam"
-    properties: PagerDutyTeamProperties = (
-        PagerDutyTeamProperties()
-    )
-    sub_resource_relationship: PagerDutyTeamToOrganizationRel = (
-        PagerDutyTeamToOrganizationRel()
-    )
+    properties: PagerDutyTeamProperties = PagerDutyTeamProperties()
+    scoped_cleanup: bool = False
     other_relationsips: OtherRelationships = OtherRelationships(
         [
             PagerDutyTeamToUserRel(),
@@ -72,21 +53,7 @@ class PagerDutyTeamSchema(CartographyNodeSchema):
     )
 
 
-
 ingestion_cypher_query = """
-    UNWIND $Teams AS team
-        MERGE (t:PagerDutyTeam{id: team.id})
-        ON CREATE SET t.html_url = team.html_url,
-            t.firstseen = timestamp()
-        SET t.type = team.type,
-            t.summary = team.summary,
-            t.name = team.name,
-            t.description = team.description,
-            t.default_role = team.default_role,
-            t.lastupdated = $update_tag
-    """
-
-    ingestion_cypher_query = """
     UNWIND $Relations AS relation
         MATCH (t:PagerDutyTeam{id: relation.team}), (u:PagerDutyUser{id: relation.user})
         MERGE (u)-[r:MEMBER_OF]->(t)

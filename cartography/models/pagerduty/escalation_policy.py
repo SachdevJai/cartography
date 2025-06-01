@@ -1,4 +1,4 @@
-    ingestion_cypher_query = """
+ingestion_cypher_query = """
     UNWIND $EscalationPolicies AS policy
         MERGE (p:PagerDutyEscalationPolicy{id: policy.id})
         ON CREATE SET p.html_url = policy.html_url,

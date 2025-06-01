@@ -1,4 +1,4 @@
-    ingestion_cypher_query = """
+ingestion_cypher_query = """
     UNWIND $Schedules AS schedule
         MERGE (u:PagerDutySchedule{id: schedule.id})
         ON CREATE SET u.html_url = schedule.html_url,

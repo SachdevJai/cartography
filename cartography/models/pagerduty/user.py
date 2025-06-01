@@ -4,10 +4,6 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
-from cartography.models.core.relationships import CartographyRelSchema
-from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -34,25 +30,7 @@ class PagerDutyUserToOrganizationRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:PagerDutyOrganization)-[:RESOURCE]->(:PagerDutyUser)
-class PagerDutyUserToOrganizationRel(CartographyRelSchema):
-    target_node_label: str = "PagerDutyOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: PagerDutyUserToOrganizationRelProperties = (
-        PagerDutyUserToOrganizationRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class PagerDutyUserSchema(CartographyNodeSchema):
     label: str = "PagerDutyUser"
-    properties: PagerDutyUserProperties = (
-        PagerDutyUserProperties()
-    )
-    sub_resource_relationship: PagerDutyUserToOrganizationRel = (
-        PagerDutyUserToOrganizationRel()
-    )
+    properties: PagerDutyUserProperties = PagerDutyUserProperties()
+    scoped_cleanup: bool = False

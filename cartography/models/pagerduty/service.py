@@ -1,34 +1,79 @@
-    ingestion_cypher_query = """
-    UNWIND $Services AS service
-        MERGE (s:PagerDutyService{id: service.id})
-        ON CREATE SET s.html_url = service.html_url,
-            s.firstseen = timestamp()
-        SET s.type = service.type,
-            s.summary = service.summary,
-            s.name = service.name,
-            s.description = service.description,
-            s.auto_resolve_timeout = service.auto_resolve_timeout,
-            s.acknowledgement_timeout = service.acknowledgement_timeout,
-            s.created_at = service.created_at,
-            s.status = service.status,
-            s.alert_creation = service.alert_creation,
-            s.alert_grouping_parameters_type = service.alert_grouping_parameters_type,
-            s.incident_urgency_rule_type = service.incident_urgency_rule.type,
-            s.incident_urgency_rule_during_support_hours_type = service.incident_urgency_rule.during_support_hours.type,
-            s.incident_urgency_rule_during_support_hours_urgency = service.incident_urgency_rule.during_support_hours.urgency,
-            s.incident_urgency_rule_outside_support_hours_type = service.incident_urgency_rule.outside_support_hours.type,
-            s.incident_urgency_rule_outside_support_hours_urgency = service.incident_urgency_rule.outside_support_hours.urgency,
-            s.support_hours_type = service.support_hours.type,
-            s.support_hours_time_zone = service.support_hours.time_zone,
-            s.support_hours_start_time = s.support_hours.start_time,
-            s.support_hours_end_time = s.support_hours.end_time,
-            s.support_hours_days_of_week = s.support_hours.days_of_week,
-            s.lastupdated = $update_tag
-    """  # noqa: E501
+from dataclasses import dataclass
 
-    ingestion_cypher_query = """
-    UNWIND $Relations AS relation
-        MATCH (t:PagerDutyTeam{id: relation.team}), (s:PagerDutyService{id: relation.service})
-        MERGE (t)-[r:ASSOCIATED_WITH]->(s)
-        ON CREATE SET r.firstseen = timestamp()
-    """
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+@dataclass(frozen=True)
+class PagerDutyServiceProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    html_url: PropertyRef = PropertyRef("html_url")
+    type: PropertyRef = PropertyRef("type")
+    summary: PropertyRef = PropertyRef("summary")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    description: PropertyRef = PropertyRef("description")
+    auto_resolve_timeout: PropertyRef = PropertyRef("auto_resolve_timeout")
+    acknowledgement_timeout: PropertyRef = PropertyRef("acknowledgement_timeout")
+    created_at: PropertyRef = PropertyRef("created_at")
+    status: PropertyRef = PropertyRef("status")
+    alert_creation: PropertyRef = PropertyRef("alert_creation")
+    alert_grouping_parameters_type: PropertyRef = PropertyRef(
+        "alert_grouping_parameters_type"
+    )
+    incident_urgency_rule_type: PropertyRef = PropertyRef("incident_urgency_rule_type")
+    incident_urgency_rule_during_support_hours_type: PropertyRef = PropertyRef(
+        "incident_urgency_rule_during_support_hours_type"
+    )
+    incident_urgency_rule_during_support_hours_urgency: PropertyRef = PropertyRef(
+        "incident_urgency_rule_during_support_hours_urgency"
+    )
+    incident_urgency_rule_outside_support_hours_type: PropertyRef = PropertyRef(
+        "incident_urgency_rule_outside_support_hours_type"
+    )
+    incident_urgency_rule_outside_support_hours_urgency: PropertyRef = PropertyRef(
+        "incident_urgency_rule_outside_support_hours_urgency"
+    )
+    support_hours_type: PropertyRef = PropertyRef("support_hours_type")
+    support_hours_time_zone: PropertyRef = PropertyRef("support_hours_time_zone")
+    support_hours_start_time: PropertyRef = PropertyRef("support_hours_start_time")
+    support_hours_end_time: PropertyRef = PropertyRef("support_hours_end_time")
+    support_hours_days_of_week: PropertyRef = PropertyRef("support_hours_days_of_week")
+
+
+@dataclass(frozen=True)
+class PagerDutyServiceToTeamProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:PagerDutTeam)-[:ASSOCIATED_WITH]->(:PagerDutyService)
+class PagerDutyServiceToTeamRel(CartographyRelSchema):
+    target_node_label: str = "PagerDutTeam"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        # WIP: switch intel to a one_to_many transform function
+        # MATCH (t:PagerDutyTeam{id: relation.team}), (s:PagerDutyService{id: relation.service})
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "ASSOCIATED_WITH"
+    properties: PagerDutyServiceToTeamProperties = PagerDutyServiceToTeamProperties()
+
+
+@dataclass(frozen=True)
+class PagerDutyServiceSchema(CartographyNodeSchema):
+    label: str = "PagerDutyService"
+    properties: PagerDutyServiceProperties = PagerDutyServiceProperties()
+    scoped_cleanup: bool = False
+    other_relationsips: OtherRelationships = OtherRelationships(
+        [
+            PagerDutyServiceToTeamRel(),
+        ]
+    )
