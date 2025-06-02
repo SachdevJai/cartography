@@ -21,13 +21,15 @@ def sync_services(
     neo4j_session: neo4j.Session,
     update_tag: int,
     pd_session: APISession,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     services = get_services(pd_session)
     transformed_services = transform_services(services)
     load_service_data(neo4j_session, transformed_services, update_tag)
     integrations = get_integrations(pd_session, services)
+    print(integrations)
     load_integration_data(neo4j_session, integrations, update_tag)
-    cleanup(neo4j_session)
+    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -65,8 +67,9 @@ def transform_services(
     """
     transformed_services = []
     for service in services:
-        created_at = dateutil.parser.parse(service["created_at"])
-        service["created_at"] = int(created_at.timestamp())
+        if isinstance(service.get("created_at"), str):
+            created_at = dateutil.parser.parse(service["created_at"])
+            service["created_at"] = int(created_at.timestamp())
         service["teams_id"] = [team["id"] for team in service.get("teams", [])]
         transformed_services.append(service)
     return transformed_services
@@ -112,10 +115,12 @@ def load_integration_data(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session) -> None:
-    GraphJob.from_node_schema(PagerDutyIntegrationSchema(), {}).run(
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(PagerDutyIntegrationSchema(), common_job_parameters).run(
         neo4j_session,
     )
-    GraphJob.from_node_schema(PagerDutyServiceSchema(), {}).run(
+    GraphJob.from_node_schema(PagerDutyServiceSchema(), common_job_parameters).run(
         neo4j_session,
     )

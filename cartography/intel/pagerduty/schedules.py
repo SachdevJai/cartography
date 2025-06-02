@@ -22,12 +22,13 @@ def sync_schedules(
     neo4j_session: neo4j.Session,
     update_tag: int,
     pd_session: APISession,
+    common_job_parameters: dict[str, Any],
 ) -> None:
-    schedules = get_schedules(pd_session)
-    schedules, layers = transform_schedules(schedules)
+    data = get_schedules(pd_session)
+    schedules, layers = transform_schedules(data)
     load_schedule_data(neo4j_session, schedules, update_tag)
     load_layers_data(neo4j_session, layers, update_tag)
-    cleanup(neo4j_session)
+    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -53,10 +54,10 @@ def transform_schedules(
             layer["_schedule_id"] = schedule["id"]
             layer["_layer_id"] = f"{schedule["id"]}-{layer['name']}"
             for d_attr in ["start", "end", "rotation_virtual_start"]:
-                if layer.get(d_attr):
+                if layer.get(d_attr) and isinstance(layer[d_attr], str):
                     d_val = dateutil.parser.parse(layer[d_attr])
                     layer[d_attr] = int(d_val.timestamp())
-            layer["users_id"] = [user["id"] for user in layer.get("users", [])]
+            layer["users_id"] = [user["user"]["id"] for user in layer.get("users", [])]
             layers.append(layer)
         transformed_schedules.append(schedule)
     return transformed_schedules, layers
@@ -99,10 +100,14 @@ def load_layers_data(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session) -> None:
-    GraphJob.from_node_schema(PagerDutyScheduleLayerSchema(), {}).run(
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(
+        PagerDutyScheduleLayerSchema(), common_job_parameters
+    ).run(
         neo4j_session,
     )
-    GraphJob.from_node_schema(PagerDutyScheduleSchema(), {}).run(
+    GraphJob.from_node_schema(PagerDutyScheduleSchema(), common_job_parameters).run(
         neo4j_session,
     )

@@ -65,7 +65,7 @@ class PagerDutyIntegrationSchema(CartographyNodeSchema):
     label: str = "PagerDutyIntegration"
     properties: PagerDutyIntegrationProperties = PagerDutyIntegrationProperties()
     scoped_cleanup: bool = False
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             PagerDutyIntegrationToVendorRel(),
             PagerDutyIntegrationToServiceRel(),

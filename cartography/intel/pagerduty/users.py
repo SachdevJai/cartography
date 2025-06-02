@@ -19,10 +19,11 @@ def sync_users(
     neo4j_session: neo4j.Session,
     update_tag: int,
     pd_session: APISession,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     users = get_users(pd_session)
     load_user_data(neo4j_session, users, update_tag)
-    cleanup(neo4j_session)
+    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -48,8 +49,8 @@ def load_user_data(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session,
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(PagerDutyUserSchema(), {}).run(
+    GraphJob.from_node_schema(PagerDutyUserSchema(), common_job_parameters).run(
         neo4j_session,
     )

@@ -40,13 +40,15 @@ def start_pagerduty_ingestion(
     session = APISession(config.pagerduty_api_key)
     if config.pagerduty_request_timeout is not None:
         session.timeout = config.pagerduty_request_timeout
-    sync_users(neo4j_session, config.update_tag, session)
+    sync_users(neo4j_session, config.update_tag, session, common_job_parameters)
     # WIP: teams migration blocked due to https://github.com/cartography-cncf/cartography/issues/1589
     sync_teams(neo4j_session, config.update_tag, session)
-    sync_vendors(neo4j_session, config.update_tag, session)
-    sync_services(neo4j_session, config.update_tag, session)
-    sync_schedules(neo4j_session, config.update_tag, session)
-    sync_escalation_policies(neo4j_session, config.update_tag, session)
+    sync_vendors(neo4j_session, config.update_tag, session, common_job_parameters)
+    sync_services(neo4j_session, config.update_tag, session, common_job_parameters)
+    sync_schedules(neo4j_session, config.update_tag, session, common_job_parameters)
+    sync_escalation_policies(
+        neo4j_session, config.update_tag, session, common_job_parameters
+    )
 
     merge_module_sync_metadata(
         neo4j_session,

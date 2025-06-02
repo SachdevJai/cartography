@@ -46,7 +46,7 @@ class PagerDutyTeamSchema(CartographyNodeSchema):
     label: str = "PagerDutyTeam"
     properties: PagerDutyTeamProperties = PagerDutyTeamProperties()
     scoped_cleanup: bool = False
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             PagerDutyTeamToUserRel(),
         ]

@@ -19,9 +19,11 @@ def sync_vendors(
     neo4j_session: neo4j.Session,
     update_tag: int,
     pd_session: APISession,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     vendors = get_vendors(pd_session)
     load_vendor_data(neo4j_session, vendors, update_tag)
+    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -40,28 +42,14 @@ def load_vendor_data(
     """
     Transform and load vendor information
     """
-    ingestion_cypher_query = """
-    UNWIND $Vendors AS vendor
-        MERGE (v:PagerDutyVendor{id: vendor.id})
-        ON CREATE SET v.firstseen = timestamp()
-        SET v.type = vendor.type,
-            v.summary = vendor.summary,
-            v.name = vendor.name,
-            v.website_url = vendor.website_url,
-            v.logo_url = vendor.logo_url,
-            v.thumbnail_url = vendor.thumbnail_url,
-            v.description = vendor.description,
-            v.integration_guide_url = vendor.integration_guide_url,
-            v.lastupdated = $update_tag
-    """
     logger.info(f"Loading {len(data)} pagerduty vendors.")
     load(neo4j_session, PagerDutyVendorSchema(), data, lastupdated=update_tag)
 
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session,
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(PagerDutyVendorSchema(), {}).run(
+    GraphJob.from_node_schema(PagerDutyVendorSchema(), common_job_parameters).run(
         neo4j_session,
     )

@@ -35,7 +35,7 @@ class PagerDutyScheduleLayerToScheduleProperties(CartographyRelProperties):
 class PagerDutyScheduleLayerToScheduleRel(CartographyRelSchema):
     target_node_label: str = "PagerDutySchedule"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("_schedule_id", set_in_kwargs=True)},
+        {"id": PropertyRef("_schedule_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_LAYER"
@@ -68,7 +68,7 @@ class PagerDutyScheduleLayerSchema(CartographyNodeSchema):
     label: str = "PagerDutyScheduleLayer"
     properties: PagerDutyScheduleLayerProperties = PagerDutyScheduleLayerProperties()
     scoped_cleanup: bool = False
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             PagerDutyScheduleLayerToScheduleRel(),
             PagerDutyScheduleLayerToUserRel(),

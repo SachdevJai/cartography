@@ -35,10 +35,7 @@ class PagerDutyEscalationPolicyToServiceProperties(CartographyRelProperties):
 class PagerDutyEscalationPolicyToServiceRel(CartographyRelSchema):
     target_node_label: str = "PagerDutyService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        # WIP: Migrate to a one to many transform function
-        # MATCH (p:PagerDutyEscalationPolicy{id: relation.escalation_policy}),
-        # (s:PagerDutyService{id: relation.service})
-        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("services_id", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"
@@ -57,10 +54,7 @@ class PagerDutyEscalationPolicyToTeamProperties(CartographyRelProperties):
 class PagerDutyEscalationPolicyToTeamRel(CartographyRelSchema):
     target_node_label: str = "PagerDutyTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        # WIP: Migrate to a one to many transform function
-        # MATCH (p:PagerDutyEscalationPolicy{id: relation.escalation_policy}),
-        # (s:PagerDutyService{id: relation.service})
-        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("teams_id", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"
@@ -76,7 +70,7 @@ class PagerDutyEscalationPolicySchema(CartographyNodeSchema):
         PagerDutyEscalationPolicyProperties()
     )
     scoped_cleanup: bool = False
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             PagerDutyEscalationPolicyToServiceRel(),
             PagerDutyEscalationPolicyToTeamRel(),

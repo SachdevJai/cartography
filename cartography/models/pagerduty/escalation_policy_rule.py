@@ -52,8 +52,7 @@ class PagerDutyEscalationPolicyRuleToUserProperties(CartographyRelProperties):
 class PagerDutyEscalationPolicyRuleToUserRel(CartographyRelSchema):
     target_node_label: str = "PagerDutyUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        # WIP: Migrate to a one to many transform function
-        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("users_id", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"
@@ -72,8 +71,7 @@ class PagerDutyEscalationPolicyRuleToScheduleProperties(CartographyRelProperties
 class PagerDutyEscalationPolicyRuleToScheduleRel(CartographyRelSchema):
     target_node_label: str = "PagerDutySchedule"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        # WIP: Migrate to a one to many transform function
-        {"id": PropertyRef("ASSOCIATED_WITH", set_in_kwargs=True)},
+        {"id": PropertyRef("schedules_id", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATED_WITH"
@@ -89,7 +87,7 @@ class PagerDutyEscalationPolicyRuleSchema(CartographyNodeSchema):
         PagerDutyEscalationPolicyRuleProperties()
     )
     scoped_cleanup: bool = False
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             PagerDutyEscalationPolicyRuleToEscalationPolicyRel(),
             PagerDutyEscalationPolicyRuleToUserRel(),

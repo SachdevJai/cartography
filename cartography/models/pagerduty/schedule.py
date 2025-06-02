@@ -45,7 +45,7 @@ class PagerDutyScheduleSchema(CartographyNodeSchema):
     label: str = "PagerDutySchedule"
     properties: PagerDutyScheduleProperties = PagerDutyScheduleProperties()
     scoped_cleanup: bool = False
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             PagerDutyScheduleToUserRel(),
         ]

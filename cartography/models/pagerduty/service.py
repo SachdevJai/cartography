@@ -70,7 +70,7 @@ class PagerDutyServiceSchema(CartographyNodeSchema):
     label: str = "PagerDutyService"
     properties: PagerDutyServiceProperties = PagerDutyServiceProperties()
     scoped_cleanup: bool = False
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             PagerDutyServiceToTeamRel(),
         ]
