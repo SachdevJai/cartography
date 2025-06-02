@@ -27,7 +27,6 @@ def sync_services(
     transformed_services = transform_services(services)
     load_service_data(neo4j_session, transformed_services, update_tag)
     integrations = get_integrations(pd_session, services)
-    print(integrations)
     load_integration_data(neo4j_session, integrations, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
