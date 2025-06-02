@@ -21,7 +21,7 @@ def _ensure_local_neo4j_has_test_vendors(neo4j_session):
     "get_vendors",
     return_value=tests.data.pagerduty.vendors.GET_VENDORS_DATA,
 )
-def test_load_user_data(mock_get, neo4j_session):
+def test_load_vendor_data(mock_get, neo4j_session):
     # Arrange
     api_session = Mock()
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
